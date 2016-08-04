@@ -10,7 +10,7 @@
 			<description>The entity representing devices in the backend.</description>
 		</property>
 		<property key="registrationIdAttribute" type="attribute" required="true" entityProperty="deviceEntity" isPath="no">
-			<caption>registration ID attribute</caption>
+			<caption>Registration ID Attribute</caption>
 			<category>Data Source</category>
 			<description>The attribute in which the device registration ID is stored.</description>
 			<attributeTypes>

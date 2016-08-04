@@ -33,12 +33,11 @@ define([
     return declare("pushNotifications.widget.pushNotifications", [_WidgetBase, _TemplatedMixin], {
         // _TemplatedMixin will create our dom node using this HTML template.
         templateString: widgetTemplate,
-        // Parameters configured in the Modeler.
-        deviceEntity: "",
-        registrationIdAttribute: "",
-        settingsEntity: "",
-        settingsXpathConstraint: "",
-        senderIdAttribute: "",
+        // Constants for identifying domain model elements
+        DEVICEENTITY: "PushNotifications.Device",
+        REGISTRATIONIDATTRIBUTE: "PushNotifications.Device.RegistrationID",
+        GCMSETTINGSENTITY: "PushNotifications.GCMSettings",
+        GCMSENDERIDATTRIBUTE: "PushNotifications.GCMSettings.SenderId",
         // Internal variables. Non-primitives created in the prototype are shared between all widget instances.
         _handle: null,
         _gcmSenderId: null,
@@ -85,22 +84,29 @@ define([
 
             var deferred = new Deferred();
 
-            var xpathString = "//" + this.settingsEntity + this.settingsXpathConstraint;
-            mx.data.get({
-                xpath: xpathString,
-                callback: function(settings) {
+            mx.data.getSlice(this.GCMSETTINGSENTITY,
+                null,
+                {
+                    limit: 1
+                },
+                function(settings, count) {
                     if (settings.length > 0) {
                         logger.debug("Found a GCM settings object.");
-
                         deferred.resolve(settings[0]);
                     } else {
-                        deferred.reject("Could not find a GCM settings object.")
+                        var msg = "Could not find a GCM settings object.";
+
+                        logger.debug(msg);
+                        deferred.reject(msg)
                     }
                 },
-                error: function (err) {
-                    deferred.reject("Could not retrieve a GCM settings object.");
+                function (err) {
+                    var msg = "Could not retrieve GCM settings: " + err.message;
+
+                    logger.debug(msg);
+                    deferred.reject(msg);
                 }
-            }, this);
+            );
 
             return deferred.promise;
         },
@@ -115,7 +121,7 @@ define([
             if (allSettings["gcm"]) {
                 var gcm = allSettings.gcm;
 
-                this._gcmSenderId = gcm.get(this.senderIdAttribute);
+                this._gcmSenderId = gcm.get(this.GCMSENDERIDATTRIBUTE);
 
                 var push = PushNotification.init({
                     "android": {
@@ -144,27 +150,29 @@ define([
         retrieveDevice: function (registrationId) {
             logger.debug(".retrieveDevice");
 
-            var xpathString = "//" + this.deviceEntity + "[" + this.registrationIdAttribute + "='" + registrationId + "']"
-
             var deferred = new Deferred();
 
-            mx.data.get({
-                xpath: xpathString,
-                filter: {
+            mx.data.getSlice(this.DEVICEENTITY,
+                {
+                    attribute: this.REGISTRATIONIDATTRIBUTE,
+                    operator: "equals",
+                    value: registrationId
+                },
+                {
                     amount: 1
                 },
-                callback: dojoLang.hitch(this, function(device) {
-                    if (device.length > 0) {
-                        logger.debug("Retrieved device object with ID " + device[0].get(this.registrationIdAttribute));
+                dojoLang.hitch(this, function(devices, count) {
+                    if (devices.length > 0) {
+                        logger.debug("Retrieved device object with ID " + devices[0].get(this.REGISTRATIONIDATTRIBUTE));
 
-                        deferred.resolve(device[0]);
+                        deferred.resolve(devices[0]);
                     } else {
                         mx.data.create({
-                            entity: this.deviceEntity,
+                            entity: this.DEVICEENTITY,
                             callback: dojoLang.hitch(this, function(obj) {
-                                obj.set(this.registrationIdAttribute, registrationId);
+                                obj.set(this.REGISTRATIONIDATTRIBUTE, registrationId);
 
-                                logger.debug("Created device object created with ID " + obj.get(this.registrationIdAttribute));
+                                logger.debug("Created device object created with ID " + obj.get(this.REGISTRATIONIDATTRIBUTE));
 
                                 deferred.resolve(obj);
                             }),
@@ -174,10 +182,12 @@ define([
                         });
                     }
                 }),
-                error: function(e) {
-                    deferred.reject("Failed to retrieve device object: " + e);
+                function(err) {
+                    var msg = "Failed to retrieve device object: " + err.message;
+                    logger.debug(msg);
+                    deferred.reject(msg);
                 }
-            });
+            );
 
             return deferred.promise;
         },
@@ -196,7 +206,7 @@ define([
             mx.data.commit({
                 mxobj: device,
                 callback: dojoLang.hitch(this, function () {
-                    logger.debug("Committed device object with ID " + device.get(this.registrationIdAttribute));
+                    logger.debug("Committed device object with ID " + device.get(this.REGISTRATIONIDATTRIBUTE));
                 }),
                 error: dojoLang.hitch(this, function (e) {
                     logger.error("Error occurred attempting to commit device object: " + e);

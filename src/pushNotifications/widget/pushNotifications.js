@@ -57,15 +57,27 @@ define([
 
             if (typeof cordova !== "undefined") {
                 if (typeof window.PushNotification !== "undefined") {
-                    all({gcm: this.initGCMSettings()})
-                        .then(dojoLang.hitch(this, this.registerDevice))
-                        .otherwise(function (err) {
-                            console.error(err);
-                        })
+                    var networkState = navigator.connection.type;
+
+                    if (networkState !== Connection.NONE) {
+                        this.initializePushNotifications();
+                    } else {
+                        document.addEventListener("online", dojoLang.hitch(this, this.initializePushNotifications));
+                    }
                 } else {
                     logger.warning("PushNotifications plugin not available; this plugin should be included during the build.");
                 }
             }
+        },
+
+        initializePushNotifications: function () {
+            all({gcm: this.initGCMSettings()})
+                .then(dojoLang.hitch(this, this.registerDevice))
+                .otherwise(function (err) {
+                    console.error(err);
+                })
+
+            document.removeEventListener("online");
         },
 
         initGCMSettings: function() {

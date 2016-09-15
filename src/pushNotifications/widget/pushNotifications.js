@@ -49,6 +49,7 @@ define([
         _platform: null,
         _initIntervalHandle: null,
         _push: null,
+        _registered: false,
 
         // dojo.declare.constructor is called to construct the widget instance. Implement to initialize non-primitive properties.
         constructor: function() {
@@ -66,7 +67,7 @@ define([
             logger.debug(".update");
 
             if (typeof cordova !== "undefined" && typeof window.PushNotification !== "undefined") {
-                if (!this._registrationId) {
+                if (!this._registered) {
                     this.initializePushNotifications(); 
                 }
             } else {
@@ -194,9 +195,14 @@ define([
 
             this.initializeDeviceRegistration()
                 .then(dojoLang.hitch(this, this.registerDevice))
+                .then(dojoLang.hitch(this, function() {
+                    this._registered = true;
+                }))
                 .otherwise(function (err) {
                     logger.error("Failed to register device: " + err);
-                })
+
+                    this._registered = false;
+                });
         },
 
         initializeDeviceRegistration: function () {
